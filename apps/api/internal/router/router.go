@@ -10,6 +10,7 @@ func New() *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/healthz", handlers.Health)
+	r.GET("/products", handlers.ListProducts)
 
 	return r
 }
