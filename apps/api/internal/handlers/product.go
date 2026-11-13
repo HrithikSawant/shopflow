@@ -1,22 +1,24 @@
 package handlers
 
-import "github.com/gin-gonic/gin"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/HrithikSawant/shopflow-api/internal/database"
+	"github.com/HrithikSawant/shopflow-api/internal/repository"
+)
 
 func ListProducts(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"products": []gin.H{
-			{
-				"id":          1,
-				"name":        "Mechanical Keyboard",
-				"description": "Hot swappable keyboard",
-				"price":       4999,
-			},
-			{
-				"id":          2,
-				"name":        "Gaming Mouse",
-				"description": "Wireless mouse",
-				"price":       2999,
-			},
-		},
+	products, err := repository.ListProducts(database.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"products": products,
 	})
 }

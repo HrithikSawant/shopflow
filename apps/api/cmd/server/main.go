@@ -16,6 +16,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	database.DB = db
 	defer db.Close(context.Background())
 
 	log.Println("postgres connected")
