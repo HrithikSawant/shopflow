@@ -11,6 +11,6 @@ func New() *gin.Engine {
 
 	r.GET("/healthz", handlers.Health)
 	r.GET("/products", handlers.ListProducts)
-
+	r.POST("/orders", handlers.CreateOrder)
 	return r
 }
