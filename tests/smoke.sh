@@ -19,5 +19,11 @@ curl -fs \
 -H "Content-Type: application/json" \
 -d '{"productId":1,"quantity":2}'
 
+curl -fs \
+-X POST http://localhost:8080/orders \
+-H "Content-Type: application/json" \
+-d '{"productId":999,"quantity":1}' \
+&& exit 1
+
 echo ""
 echo "Smoke tests passed"

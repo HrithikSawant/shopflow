@@ -6,8 +6,10 @@ import (
 )
 
 type OrderCreatedEvent struct {
-	Event   string `json:"event"`
-	OrderID int64  `json:"orderId"`
+	Event     string `json:"event"`
+	OrderID   int64  `json:"orderId"`
+	ProductID int    `json:"productId"`
+	Quantity  int    `json:"quantity"`
 }
 
 func Consume(rabbitURL string, handler func(OrderCreatedEvent)) error {

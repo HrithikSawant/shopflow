@@ -15,6 +15,7 @@ type CreateOrderRequest struct {
 }
 
 func CreateOrder(c *gin.Context) {
+
 	var req CreateOrderRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -24,15 +25,48 @@ func CreateOrder(c *gin.Context) {
 		return
 	}
 
-	orderID, err := repository.CreateOrder(
+	if req.ProductID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid product id",
+		})
+		return
+	}
+
+	if req.Quantity <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "quantity must be greater than zero",
+		})
+		return
+	}
+
+	product, err := repository.GetProductByID(
 		database.DB,
-		9999,
+		req.ProductID,
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "product not found",
 		})
+		return
+	}
+
+	totalAmount :=
+		product.Price * float64(req.Quantity)
+
+	orderID, err := repository.CreateOrder(
+		database.DB,
+		req.ProductID,
+		req.Quantity,
+		totalAmount,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
 		return
 	}
 
@@ -44,9 +78,11 @@ func CreateOrder(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(500, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError,
+			gin.H{
+				"error": err.Error(),
+			},
+		)
 		return
 	}
 

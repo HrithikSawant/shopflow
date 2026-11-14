@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS products (
     name TEXT NOT NULL,
     description TEXT,
     price NUMERIC(10,2) NOT NULL,
-    inventory_count INTEGER NOT NULL DEFAULT 0,
+    inventory_count INTEGER NOT NULL CHECK (inventory_count >= 0),
     created_at TIMESTAMP DEFAULT now()
 );
 
@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS order_items (
     id BIGSERIAL PRIMARY KEY,
     order_id BIGINT REFERENCES orders(id),
     product_id BIGINT REFERENCES products(id),
-    quantity INTEGER NOT NULL,
-    price NUMERIC(10,2) NOT NULL
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0)
 );
 
 INSERT INTO products
