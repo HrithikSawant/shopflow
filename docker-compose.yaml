@@ -1,0 +1,43 @@
+services:
+
+  postgres:
+    image: postgres:17
+    container_name: shopflow-postgres
+
+    environment:
+      POSTGRES_DB: shopflow
+      POSTGRES_USER: shopflow
+      POSTGRES_PASSWORD: shopflow
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ./migrations:/docker-entrypoint-initdb.d
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: shopflow-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      DATABASE_URL: postgres://shopflow:shopflow@postgres:5432/shopflow
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  worker:
+    build:
+      context: ./apps/worker
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - rabbitmq

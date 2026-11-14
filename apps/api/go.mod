@@ -5,6 +5,7 @@ go 1.26.8
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/jackc/pgx/v5 v5.13.0
+	github.com/rabbitmq/amqp091-go v1.16.0
 )
 
 require (

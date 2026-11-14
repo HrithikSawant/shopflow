@@ -12,7 +12,10 @@ func Load() Config {
 	return Config{
 		Port:        getenv("PORT", "8080"),
 		DatabaseURL: getenv("DATABASE_URL", ""),
-		RabbitMQURL: getenv("RABBITMQ_URL", ""),
+		RabbitMQURL: getenv(
+			"RABBITMQ_URL",
+			"amqp://guest:guest@localhost:5672/",
+		),
 	}
 }
 

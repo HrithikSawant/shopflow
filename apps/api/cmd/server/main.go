@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
-
 	"github.com/HrithikSawant/shopflow-api/internal/config"
 	"github.com/HrithikSawant/shopflow-api/internal/database"
+	"github.com/HrithikSawant/shopflow-api/internal/rabbitmq"
 	"github.com/HrithikSawant/shopflow-api/internal/router"
+	"log"
 )
 
 func main() {
@@ -20,6 +20,8 @@ func main() {
 	defer db.Close(context.Background())
 
 	log.Println("postgres connected")
+
+	rabbitmq.URL = cfg.RabbitMQURL
 
 	r := router.New()
 
