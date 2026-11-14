@@ -19,7 +19,7 @@ func ListProducts(db *pgx.Conn) ([]models.Product, error) {
 
 	defer rows.Close()
 
-	var products []models.Product
+	products := make([]models.Product, 0)
 
 	for rows.Next() {
 		var p models.Product

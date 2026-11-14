@@ -21,3 +21,9 @@ CREATE TABLE IF NOT EXISTS order_items (
     quantity INTEGER NOT NULL,
     price NUMERIC(10,2) NOT NULL
 );
+
+INSERT INTO products
+(name, description, price, inventory_count)
+VALUES
+('Mechanical Keyboard','Hot swappable keyboard',4999,25),
+('Gaming Mouse','Wireless mouse',2999,50);
