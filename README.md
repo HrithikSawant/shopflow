@@ -1,6 +1,6 @@
 # ShopFlow
 
-Cloud-native e-commerce platform.
+e-commerce platform.
 
 Components:
 
