@@ -16,6 +16,8 @@ WORKDIR /app
 COPY --from=builder /app/shopflow-api .
 USER app
 
+ENV GIN_MODE=release
+
 EXPOSE 8080
 
 CMD ["./shopflow-api"]

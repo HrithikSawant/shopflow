@@ -74,7 +74,7 @@ This setup is for local development and CI. For a real deployment:
 
 ```bash
 make test               # unit tests, no services needed
-make up && make test-integration
+make up && make test-integration   # own database + RabbitMQ vhost: dev data is untouched
 ```
 
 Integration tests skip themselves unless `TEST_DATABASE_URL` / `TEST_RABBITMQ_URL` are set.

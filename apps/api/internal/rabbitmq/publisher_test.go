@@ -31,6 +31,8 @@ func TestPublishDeliversMessage(t *testing.T) {
 		t.Skip("TEST_RABBITMQ_URL not set")
 	}
 
+	requireDedicatedVhost(t, url)
+
 	conn, err := amqp.Dial(url)
 	require.NoError(t, err)
 	defer conn.Close()
@@ -54,4 +56,18 @@ func TestPublishDeliversMessage(t *testing.T) {
 	require.True(t, ok, "message should be in the queue")
 	assert.JSONEq(t, `{"hello":"world"}`, string(msg.Body))
 	assert.Equal(t, amqp.Persistent, msg.DeliveryMode)
+}
+
+// requireDedicatedVhost protects real queues: these tests purge and consume
+// the "orders" queues, so they must never run on the default vhost where a
+// live API / worker may be using them.
+func requireDedicatedVhost(t *testing.T, url string) {
+	t.Helper()
+
+	uri, err := amqp.ParseURI(url)
+	require.NoError(t, err)
+
+	if uri.Vhost == "/" {
+		t.Fatal("refusing to purge queues on the default vhost; use a dedicated test vhost (make test-integration sets one up)")
+	}
 }
