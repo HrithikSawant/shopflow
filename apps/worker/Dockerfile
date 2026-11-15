@@ -9,7 +9,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o shopflow-worker ./cmd/worker
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 RUN adduser -D -u 10001 app
 WORKDIR /app
