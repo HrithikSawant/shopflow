@@ -16,7 +16,7 @@ import (
 )
 
 // Integration tests: need a migrated Postgres.
-//   TEST_DATABASE_URL=postgres://shopflow:shopflow@localhost:5432/shopflow go test ./...
+//   make up && make test-integration   (sets TEST_DATABASE_URL from .env)
 // They are skipped when the variable is not set.
 
 func testPool(t *testing.T) *pgxpool.Pool {
@@ -149,4 +149,25 @@ func TestCreateOrderNeverOversells(t *testing.T) {
 	assert.Equal(t, 5, succeeded)
 	assert.Equal(t, attempts-5, outOfStock)
 	assert.Equal(t, 0, inventory(t, pool, productID))
+}
+
+func TestListProductsToleratesMissingDescription(t *testing.T) {
+	pool := testPool(t)
+
+	// description is a nullable column; a product without one must not break the listing
+	productID := newProduct(t, pool, 1)
+
+	products, err := repository.ListProducts(pool)
+	require.NoError(t, err)
+
+	found := false
+
+	for _, p := range products {
+		if p.ID == int64(productID) {
+			found = true
+			assert.Equal(t, "", p.Description)
+		}
+	}
+
+	assert.True(t, found)
 }

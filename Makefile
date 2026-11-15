@@ -1,4 +1,7 @@
-up:
+env:
+	@bash ./scripts/gen-env.sh
+
+up: env
 	docker compose up --build -d --wait
 
 down:
@@ -11,14 +14,26 @@ test:
 	cd apps/api && go vet ./... && go test ./...
 	cd apps/worker && go vet ./... && go test ./...
 
-# needs `make up` (Postgres + RabbitMQ on localhost)
-test-integration:
-	cd apps/api && TEST_DATABASE_URL=postgres://shopflow:shopflow@localhost:5432/shopflow \
-		TEST_RABBITMQ_URL=amqp://guest:guest@localhost:5672/ go test ./... -p 1 -count=1
-	cd apps/worker && TEST_RABBITMQ_URL=amqp://guest:guest@localhost:5672/ go test ./... -count=1
+# needs `make up`. Runs against a separate <POSTGRES_DB>_test database (recreated
+# with all migrations on every run), so your development data is never touched.
+# Passwords are read from .env inside the shell; the leading @ keeps them out of the log.
+test-integration: env
+	@set -a && . ./.env && set +a && \
+	docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -q -U "$$POSTGRES_USER" -d postgres \
+		-c "DROP DATABASE IF EXISTS $${POSTGRES_DB}_test" \
+		-c "CREATE DATABASE $${POSTGRES_DB}_test" && \
+	cat migrations/*.sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -q \
+		-U "$$POSTGRES_USER" -d "$${POSTGRES_DB}_test" >/dev/null && \
+	(cd apps/api && \
+		TEST_DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:5432/$${POSTGRES_DB}_test" \
+		TEST_RABBITMQ_URL="amqp://$$RABBITMQ_USER:$$RABBITMQ_PASSWORD@localhost:5672/" \
+		go test ./... -p 1 -count=1) && \
+	(cd apps/worker && \
+		TEST_RABBITMQ_URL="amqp://$$RABBITMQ_USER:$$RABBITMQ_PASSWORD@localhost:5672/" \
+		go test ./... -count=1)
 
 smoke:
-	./tests/smoke.sh
+	bash ./tests/smoke.sh
 
 test-order:
 	curl -X POST http://localhost:8080/orders \

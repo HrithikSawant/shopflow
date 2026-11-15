@@ -15,7 +15,7 @@ import (
 	"github.com/HrithikSawant/shopflow-worker/internal/rabbitmq"
 )
 
-// Integration test: TEST_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+// Integration test: runs when TEST_RABBITMQ_URL is set (`make test-integration`).
 func TestConsumeAckRetryAndDeadLetter(t *testing.T) {
 	url := os.Getenv("TEST_RABBITMQ_URL")
 	if url == "" {

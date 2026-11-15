@@ -1,14 +1,17 @@
+# Credentials come from .env (see .env.example / `make env`). Nothing secret is
+# stored in this file, and compose refuses to start if a value is missing.
 services:
 
   postgres:
     image: postgres:17
     container_name: shopflow-postgres
     environment:
-      POSTGRES_DB: shopflow
-      POSTGRES_USER: shopflow
-      POSTGRES_PASSWORD: shopflow
+      POSTGRES_DB: ${POSTGRES_DB:?run `make env` to create .env}
+      POSTGRES_USER: ${POSTGRES_USER:?run `make env` to create .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run `make env` to create .env}
     ports:
-      - "5432:5432"
+      # localhost only: not reachable from other machines on your network
+      - "127.0.0.1:5432:5432"
     volumes:
       # Runs *.sql in order, only on a FRESH data directory.
       - ./migrations:/docker-entrypoint-initdb.d:ro
@@ -16,7 +19,7 @@ services:
       # -h 127.0.0.1 matters: during first-time init Postgres runs a temporary
       # server that only listens on the unix socket, so a socket check would
       # report "ready" before the migrations have finished.
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U shopflow -d shopflow"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -24,9 +27,13 @@ services:
   rabbitmq:
     image: rabbitmq:4-management
     container_name: shopflow-rabbitmq
+    environment:
+      # With these set, the built-in guest/guest account is NOT created.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?run `make env` to create .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?run `make env` to create .env}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 5s
@@ -37,8 +44,8 @@ services:
     build:
       context: ./apps/api
     environment:
-      DATABASE_URL: postgres://shopflow:shopflow@postgres:5432/shopflow
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     ports:
       - "8080:8080"
     depends_on:
@@ -52,13 +59,17 @@ services:
       timeout: 3s
       retries: 10
     restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
 
   worker:
     build:
       context: ./apps/worker
     environment:
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
     depends_on:
       rabbitmq:
         condition: service_healthy
     restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

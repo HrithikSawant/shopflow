@@ -6,8 +6,18 @@
 *.out
 coverage.*
 
-# local config / editors / OS
+# secrets and local config: only .env.example is committed
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# review patches should not be committed
+/shopflow-*.patch
+/shopflow-*.diff
+
+# editors / OS
 .idea/
 .vscode/
 .DS_Store

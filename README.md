@@ -15,7 +15,7 @@ client -> API --(one SQL statement)--> orders, order_items, stock, outbox_events
 Requires Docker with Compose v2.
 
 ```bash
-make up            # build + start everything, waits until healthy
+make up            # creates .env with random passwords on first run, builds, starts, waits until healthy
 make test-order    # create an order
 make smoke         # end-to-end checks (HTTP, DB state, outbox, worker)
 make logs
@@ -31,7 +31,7 @@ API: `GET /healthz`, `GET /products`, `POST /orders` with `{"productId":1,"quant
 | 404 | unknown product |
 | 409 | not enough stock |
 
-RabbitMQ UI: http://localhost:15672 (guest / guest)
+RabbitMQ UI: http://localhost:15672 (user `RABBITMQ_USER` and password `RABBITMQ_PASSWORD` from your `.env`)
 
 ## Design notes
 
@@ -44,6 +44,31 @@ RabbitMQ UI: http://localhost:15672 (guest / guest)
   `orders.dlq`. Handlers must be idempotent.
 - Migrations in `migrations/` run on a fresh Postgres volume only. For an existing
   database run `002_constraints_and_outbox.sql` manually (it is idempotent) or `make down`.
+
+## Configuration and secrets
+
+- **No credentials are stored in the repository.** `make env` (run by `make up`) creates a
+  git-ignored `.env` from `.env.example` with random passwords. `docker-compose.yaml`
+  refuses to start if a value is missing.
+- The API and worker **fail to start** without `DATABASE_URL` / `RABBITMQ_URL`; there are no
+  built-in default passwords in the code.
+- Postgres, RabbitMQ and the RabbitMQ UI are published on `127.0.0.1` only. The built-in
+  RabbitMQ `guest` account is not created.
+- CI generates fresh random passwords on every run and masks them in the logs. Every push is
+  scanned for committed secrets with gitleaks.
+
+### Before production
+
+This setup is for local development and CI. For a real deployment:
+
+- Keep secrets in a secret manager (AWS Secrets Manager / Vault) and deliver them with
+  External Secrets Operator or Sealed Secrets, never as plain values in Helm values or Git.
+- Use Docker/Kubernetes secrets or `POSTGRES_PASSWORD_FILE` instead of environment variables
+  (env values are visible in `docker inspect`).
+- Use TLS: `sslmode=verify-full` for Postgres and `amqps://` for RabbitMQ.
+- Give the API its own least-privilege database role (no superuser / schema ownership);
+  run migrations with a separate role.
+- Rotate credentials and restrict network access with network policies / security groups.
 
 ## Tests
 

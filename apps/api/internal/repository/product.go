@@ -11,7 +11,7 @@ import (
 func ListProducts(db *pgxpool.Pool) ([]models.Product, error) {
 	rows, err := db.Query(
 		context.Background(),
-		`SELECT id,name,description,price,inventory_count FROM products ORDER BY id`,
+		`SELECT id,name,COALESCE(description,''),price,inventory_count FROM products ORDER BY id`,
 	)
 
 	if err != nil {

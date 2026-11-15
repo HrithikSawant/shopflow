@@ -5,7 +5,29 @@ on:
     branches: [master]
   pull_request:
 
+# Least privilege: the workflow can only read the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan the whole history, not just the last commit
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   unit:
     runs-on: ubuntu-latest
     strategy:
@@ -16,6 +38,8 @@ jobs:
         working-directory: apps/${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/${{ matrix.app }}/go.mod
@@ -24,51 +48,40 @@ jobs:
       - run: go vet ./...
       - run: go test ./... -race -count=1
 
+  # Uses the same docker-compose stack as local development, with passwords
+  # generated fresh for every run: no credential is stored in the repository
+  # or in GitHub secrets, and the values are masked in the logs.
   integration:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: shopflow
-          POSTGRES_USER: shopflow
-          POSTGRES_PASSWORD: shopflow
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U shopflow -d shopflow"
-          --health-interval 5s --health-timeout 3s --health-retries 20
-      rabbitmq:
-        image: rabbitmq:4
-        ports: ["5672:5672"]
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 5s --health-timeout 10s --health-retries 20
-    env:
-      TEST_DATABASE_URL: postgres://shopflow:shopflow@localhost:5432/shopflow
-      TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
-      PGPASSWORD: shopflow
     steps:
       - uses: actions/checkout@v4
-      - name: Apply migrations
-        run: |
-          for f in migrations/*.sql; do
-            psql -h localhost -U shopflow -d shopflow -v ON_ERROR_STOP=1 -f "$f"
-          done
+        with:
+          persist-credentials: false
+      - run: bash scripts/gen-env.sh
+      - name: Start Postgres + RabbitMQ (migrations run on first start)
+        run: docker compose up -d --wait postgres rabbitmq
       - uses: actions/setup-go@v5
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: |
             apps/api/go.sum
             apps/worker/go.sum
-      - run: cd apps/api && go test ./... -p 1 -count=1
-      - run: cd apps/worker && go test ./... -count=1
+      - name: Integration tests
+        run: make test-integration
+      - if: failure()
+        run: docker compose logs postgres rabbitmq
+      - if: always()
+        run: docker compose down -v
 
   smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: bash scripts/gen-env.sh
       - run: docker compose up --build -d --wait
-      - run: ./tests/smoke.sh
+      - run: bash tests/smoke.sh
       - if: failure()
         run: docker compose logs
       - if: always()

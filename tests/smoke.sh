@@ -7,8 +7,12 @@
 #   CHECK_WORKER=0  skip checking the worker's container logs
 set -euo pipefail
 
+# Pick up POSTGRES_USER / POSTGRES_DB from .env (no passwords are needed here:
+# psql runs inside the container over its local socket).
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+
 API="${API:-http://localhost:8080}"
-PSQL="${PSQL:-docker compose exec -T postgres psql -U shopflow -d shopflow -tA -c}"
+PSQL="${PSQL:-docker compose exec -T postgres psql -U ${POSTGRES_USER:-shopflow} -d ${POSTGRES_DB:-shopflow} -tA -c}"
 CHECK_WORKER="${CHECK_WORKER:-1}"
 
 BODY="$(mktemp)"

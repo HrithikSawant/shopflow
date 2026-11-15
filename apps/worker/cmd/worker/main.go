@@ -15,7 +15,7 @@ func main() {
 	rabbitURL := os.Getenv("RABBITMQ_URL")
 
 	if rabbitURL == "" {
-		rabbitURL = "amqp://guest:guest@localhost:5672/"
+		log.Fatal("RABBITMQ_URL is required (it carries the credentials; there is no default)")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

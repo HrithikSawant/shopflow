@@ -14,7 +14,7 @@ import (
 )
 
 func TestPublishFailsFastWhenBrokerIsDown(t *testing.T) {
-	p := rabbitmq.NewPublisher("amqp://guest:guest@127.0.0.1:1/")
+	p := rabbitmq.NewPublisher("amqp://127.0.0.1:1/")
 	defer p.Close()
 
 	start := time.Now()
@@ -24,7 +24,7 @@ func TestPublishFailsFastWhenBrokerIsDown(t *testing.T) {
 	assert.Less(t, time.Since(start), 12*time.Second)
 }
 
-// Integration test: TEST_RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+// Integration test: runs when TEST_RABBITMQ_URL is set (`make test-integration`).
 func TestPublishDeliversMessage(t *testing.T) {
 	url := os.Getenv("TEST_RABBITMQ_URL")
 	if url == "" {
