@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/${{ matrix.app }}/go.mod
           cache-dependency-path: apps/${{ matrix.app }}/go.sum
@@ -60,7 +60,7 @@ jobs:
       - run: bash scripts/gen-env.sh
       - name: Start Postgres + RabbitMQ (migrations run on first start)
         run: docker compose up -d --wait postgres rabbitmq
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
           cache-dependency-path: |
