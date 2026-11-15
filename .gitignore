@@ -1,0 +1,13 @@
+# binaries / build output
+/apps/*/shopflow-api
+/apps/*/shopflow-worker
+*.exe
+*.test
+*.out
+coverage.*
+
+# local config / editors / OS
+.env
+.idea/
+.vscode/
+.DS_Store

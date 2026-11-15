@@ -1,0 +1,75 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, worker]
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/${{ matrix.app }}/go.mod
+          cache-dependency-path: apps/${{ matrix.app }}/go.sum
+      - run: go mod tidy && git diff --exit-code go.mod go.sum
+      - run: go vet ./...
+      - run: go test ./... -race -count=1
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: shopflow
+          POSTGRES_USER: shopflow
+          POSTGRES_PASSWORD: shopflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U shopflow -d shopflow"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 10s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://shopflow:shopflow@localhost:5432/shopflow
+      TEST_RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      PGPASSWORD: shopflow
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations
+        run: |
+          for f in migrations/*.sql; do
+            psql -h localhost -U shopflow -d shopflow -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: |
+            apps/api/go.sum
+            apps/worker/go.sum
+      - run: cd apps/api && go test ./... -p 1 -count=1
+      - run: cd apps/worker && go test ./... -count=1
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build -d --wait
+      - run: ./tests/smoke.sh
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v

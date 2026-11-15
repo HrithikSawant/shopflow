@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"errors"
+	"log"
 	"net/http"
 
-	"github.com/HrithikSawant/shopflow-api/internal/database"
-	"github.com/HrithikSawant/shopflow-api/internal/rabbitmq"
-	"github.com/HrithikSawant/shopflow-api/internal/repository"
 	"github.com/gin-gonic/gin"
+
+	"github.com/HrithikSawant/shopflow-api/internal/database"
+	"github.com/HrithikSawant/shopflow-api/internal/repository"
 )
 
 type CreateOrderRequest struct {
@@ -14,78 +16,46 @@ type CreateOrderRequest struct {
 	Quantity  int `json:"quantity"`
 }
 
-func CreateOrder(c *gin.Context) {
+// createOrder is a variable so tests can replace the database layer.
+var createOrder = func(productID, quantity int) (int64, error) {
+	return repository.CreateOrder(database.DB, productID, quantity)
+}
 
+func CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid JSON body"})
 		return
 	}
 
 	if req.ProductID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid product id",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
 		return
 	}
 
 	if req.Quantity <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "quantity must be greater than zero",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "quantity must be greater than zero"})
 		return
 	}
 
-	product, err := repository.GetProductByID(
-		database.DB,
-		req.ProductID,
-	)
+	orderID, err := createOrder(req.ProductID, req.Quantity)
 
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "product not found",
-		})
+	switch {
+	case errors.Is(err, repository.ErrProductNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "product not found"})
+		return
+	case errors.Is(err, repository.ErrInsufficientStock):
+		c.JSON(http.StatusConflict, gin.H{"error": "insufficient stock"})
+		return
+	case err != nil:
+		log.Printf("create order failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
-	totalAmount :=
-		product.Price * float64(req.Quantity)
-
-	orderID, err := repository.CreateOrder(
-		database.DB,
-		req.ProductID,
-		req.Quantity,
-		totalAmount,
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-		return
-	}
-
-	err = rabbitmq.PublishOrderCreated(
-		rabbitmq.URL,
-		orderID,
-		req.ProductID,
-		req.Quantity,
-	)
-
-	if err != nil {
-		c.JSON(http.StatusInternalServerError,
-			gin.H{
-				"error": err.Error(),
-			},
-		)
-		return
-	}
-
+	// The ORDER_CREATED event is written to the outbox in the same database
+	// statement and published to RabbitMQ by the relay (see internal/outbox).
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "order created",
 		"order": gin.H{

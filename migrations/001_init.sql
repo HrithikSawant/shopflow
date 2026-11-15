@@ -22,8 +22,10 @@ CREATE TABLE IF NOT EXISTS order_items (
     price NUMERIC(10,2) NOT NULL CHECK (price >= 0)
 );
 
-INSERT INTO products
-(name, description, price, inventory_count)
-VALUES
-('Mechanical Keyboard','Hot swappable keyboard',4999,25),
-('Gaming Mouse','Wireless mouse',2999,50);
+INSERT INTO products (name, description, price, inventory_count)
+SELECT v.name, v.description, v.price, v.inventory_count
+FROM (VALUES
+    ('Mechanical Keyboard', 'Hot swappable keyboard', 4999, 25),
+    ('Gaming Mouse', 'Wireless mouse', 2999, 50)
+) AS v(name, description, price, inventory_count)
+WHERE NOT EXISTS (SELECT 1 FROM products p WHERE p.name = v.name);

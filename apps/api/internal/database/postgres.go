@@ -5,32 +5,32 @@ import (
 	"log"
 	"time"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(databaseURL string) (*pgx.Conn, error) {
-	var conn *pgx.Conn
-	var err error
+// Connect opens a connection pool and waits (up to ~30s) for Postgres to accept connections.
+func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
+	var lastErr error
 
 	for i := 1; i <= 30; i++ {
-		conn, err = pgx.Connect(
-			context.Background(),
-			databaseURL,
-		)
-
+		pool, err := pgxpool.New(ctx, databaseURL)
 		if err == nil {
-			log.Println("postgres connected")
-			return conn, nil
+			if err = pool.Ping(ctx); err == nil {
+				log.Println("postgres connected")
+				return pool, nil
+			}
+			pool.Close()
 		}
 
-		log.Printf(
-			"waiting for postgres (%d/30): %v",
-			i,
-			err,
-		)
+		lastErr = err
+		log.Printf("waiting for postgres (%d/30): %v", i, err)
 
-		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Second):
+		}
 	}
 
-	return nil, err
+	return nil, lastErr
 }
