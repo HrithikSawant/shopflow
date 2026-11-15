@@ -54,7 +54,3 @@ make up && make test-integration
 
 Integration tests skip themselves unless `TEST_DATABASE_URL` / `TEST_RABBITMQ_URL` are set.
 
-## Roadmap
-
-Kubernetes/Helm, ArgoCD, Crossplane (AWS/Azure/GCP) — scaffolding lives in `deploy/`,
-`platform/` and `infrastructure/` and is not functional yet.
