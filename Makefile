@@ -4,10 +4,10 @@ env:
 up: env
 	docker compose up --build -d --wait
 
-down:
+down: env
 	docker compose down -v
 
-logs:
+logs: env
 	docker compose logs -f
 
 test:

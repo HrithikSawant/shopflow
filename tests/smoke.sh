@@ -24,7 +24,7 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 expect_status() {
     local want="$1"; shift
     local got
-    got="$(curl -s -o "$BODY" -w '%{http_code}' "$@")"
+    got="$(curl -s -o "$BODY" -w '%{http_code}' "$@" || true)"
     [ "$got" = "$want" ] || fail "expected HTTP $want, got $got: $(cat "$BODY")"
 }
 
@@ -32,8 +32,10 @@ sql() { $PSQL "$1" | tr -d '[:space:]'; }
 
 post_order() { # <json>
     curl -s -o "$BODY" -w '%{http_code}' -X POST "$API/orders" \
-        -H "Content-Type: application/json" -d "$1"
+        -H "Content-Type: application/json" -d "$1" || true
 }
+
+curl -s -o /dev/null "$API/healthz" || fail "API is not reachable at $API - start the stack first with: make up"
 
 echo "health + products"
 expect_status 200 "$API/healthz"
